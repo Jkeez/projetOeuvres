@@ -6,10 +6,7 @@ import com.epul.oeuvres.dao.ProprietaireService;
 import com.epul.oeuvres.dao.ReservationService;
 import com.epul.oeuvres.dao.Service;
 import com.epul.oeuvres.meserreurs.MonException;
-import com.epul.oeuvres.metier.OeuvreventeEntity;
-import com.epul.oeuvres.metier.ProprietaireEntity;
-import com.epul.oeuvres.metier.ReservationEntity;
-import com.epul.oeuvres.metier.ReservationOeuvreventeEntity;
+import com.epul.oeuvres.metier.*;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.servlet.ModelAndView;
@@ -78,13 +75,47 @@ public class ReservationControleur {
 	public ModelAndView modifierReservation(HttpServletRequest request, HttpServletResponse response) throws Exception {
 		String destinationPage = "";
 		try {
-		    OeuvreService unService = new OeuvreService();
-            ProprietaireService propService = new ProprietaireService();
-		    int numero = Integer.parseInt(request.getParameter("id"));
-		    request.setAttribute("oeuvre", unService.oeuvreById(numero));
-		    request.setAttribute("props", propService.consulterListeProps());
+		    ReservationService resServ = new ReservationService();
+			Service adhService = new Service();
 
-            destinationPage = "vues/modifierOeuvre";
+		    int numero = Integer.parseInt(request.getParameter("id"));
+		    ReservationOeuvreventeEntity reservation = resServ.reservationById(numero);
+		    OeuvreventeEntity oeuvre = reservation.getOeuvrevente();
+
+			request.setAttribute("adherents", adhService.consulterListeAdherents());
+		    request.setAttribute("oeuvre", oeuvre);
+			request.setAttribute("reservation", reservation);
+
+            destinationPage = "vues/modifierReservation";
+		} catch (Exception e) {
+			request.setAttribute("MesErreurs", e.getMessage());
+			destinationPage = "vues/Erreur";
+		}
+
+		return new ModelAndView(destinationPage);
+	}
+
+	@RequestMapping(value = "ajouterModificationReservationOeuvre.htm")
+	public ModelAndView ajouterModificationReservationOeuvre(HttpServletRequest request,
+												 HttpServletResponse response) throws Exception {
+
+		String destinationPage = "";
+
+		ReservationService resServ = new ReservationService();
+		Service adherentService = new Service();
+
+		try {
+			int numeroReservation = Integer.parseInt(request.getParameter("reservation"));
+			Date dateReservation = Date.valueOf(request.getParameter("dateRes"));
+			AdherentEntity adherent = adherentService.adherentById(Integer.parseInt(request.getParameter("adherent")));
+			ReservationOeuvreventeEntity reservation = resServ.reservationById(numeroReservation);
+
+			reservation.setAdherent(adherent);
+			reservation.setDateReservation(dateReservation);
+
+			resServ.modifierReservation(reservation);
+			request.setAttribute("mesReservations", resServ.consulterListeReservations());
+			destinationPage = "/vues/listerReservation";
 		} catch (Exception e) {
 			request.setAttribute("MesErreurs", e.getMessage());
 			destinationPage = "vues/Erreur";
@@ -186,12 +217,9 @@ public class ReservationControleur {
 			reservation.setAdherent(adherentService.adherentById(Integer.parseInt(request.getParameter("adherent"))));
 			reservation.setDateReservation(Date.valueOf(request.getParameter("dateRes")));
 			reservation.setOeuvrevente(service.oeuvreById(Integer.parseInt(request.getParameter("oeuvre"))));
-			System.out.println("biteuh");
-			System.out.println(request.getParameter("achat"));
 			if(request.getParameter("achat") != null){ //Oeuvre achetée immédiatement
 				reservation.setStatut("Confirmée");
 				reservation.getOeuvrevente().setEtatOeuvrevente("V");
-				System.out.println(request.getParameter("etat"));
 			} else {
 				reservation.setStatut("En attente");
 				reservation.getOeuvrevente().setEtatOeuvrevente("R");
